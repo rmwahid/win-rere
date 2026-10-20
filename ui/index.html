@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; frame-src https://win-rere-content.example; font-src data:; connect-src 'none'; media-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>win-rere</title>
+<style>/* @@CSS@@ */</style>
+</head>
+<body>
+<div class="app" id="app" data-sidebar="visible">
+  <header class="topbar" id="topbar">
+    <div class="brand">
+      <div class="mark" aria-hidden="true">
+        <svg viewBox="0 0 256 256" fill="currentColor">
+          <path fill-rule="evenodd" d="M84 36 H152 L188 72 V204 A16 16 0 0 1 172 220 H148 L128 196 L108 220 H84 A16 16 0 0 1 68 204 V52 A16 16 0 0 1 84 36 Z M97 122 L123 148 L159 112 L147 100 L123 124 L109 110 Z"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <svg class="brand-wordmark" viewBox="46 56 470 144" width="59" height="18" fill="none" stroke="currentColor" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="win-rere">
+          <path d="M65 181 V97 A22 22 0 0 1 87 75 H125"/>
+          <path d="M246.77 164.77 A52 52 0 1 1 262 128 H158"/>
+          <path d="M300 181 V97 A22 22 0 0 1 322 75 H360"/>
+          <path d="M481.77 164.77 A52 52 0 1 1 497 128 H393"/>
+        </svg>
+        <span class="brand-sub">OFFLINE LIBRARY</span>
+      </div>
+    </div>
+
+    <form class="omni" id="save-form" autocomplete="off">
+      <svg class="omni-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <circle cx="12" cy="12" r="8.5"/>
+        <path d="M3.5 12h17M12 3.5c2.2 2.3 3.3 5.2 3.3 8.5S14.2 18.2 12 20.5C9.8 18.2 8.7 15.3 8.7 12S9.8 5.8 12 3.5z"/>
+      </svg>
+      <input id="url" type="text" spellcheck="false" autocapitalize="off" placeholder="Paste a page URL to keep it offline" aria-label="Page URL">
+      <button id="save-btn" type="submit">SAVE</button>
+    </form>
+
+    <div class="window-actions">
+      <button class="icon-btn" id="min-btn" type="button" title="Minimize" aria-label="Minimize">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
+          <path d="M5 12.5h14"/>
+        </svg>
+      </button>
+      <button class="icon-btn danger" id="close-btn" type="button" title="Close" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
+          <path d="M6 6l12 12M18 6L6 18"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="progress" id="progress" aria-hidden="true"></div>
+
+  <aside class="sidebar">
+    <div class="search-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <circle cx="10.8" cy="10.8" r="6.3"/>
+        <path d="M15.5 15.5L20 20"/>
+      </svg>
+      <input id="search" type="search" spellcheck="false" placeholder="Search bookmarks" aria-label="Search bookmarks">
+      <kbd>Ctrl K</kbd>
+    </div>
+
+    <div class="list-head">
+      <span id="list-count">0 SAVED</span>
+      <button id="sort-btn" type="button" title="Change sort order">NEWEST</button>
+    </div>
+
+    <div class="bookmark-list" id="list" role="listbox" aria-label="Saved pages"></div>
+    <div class="list-empty" id="list-empty" hidden></div>
+    <button class="list-more" id="list-more" type="button" hidden></button>
+
+    <div class="sidebar-foot">
+      <span class="shield-chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3.5l7 2.5v5.2c0 4.2-2.8 7.3-7 9.3-4.2-2-7-5.1-7-9.3V6z"/>
+          <path d="M9 12l2 2 4-4"/>
+        </svg>
+        SCRIPTS BLOCKED
+      </span>
+      <span id="foot-count">0 pages</span>
+    </div>
+  </aside>
+
+  <main class="main">
+    <section class="empty" id="empty">
+      <svg class="empty-art" viewBox="0 0 160 128" fill="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="cardFill" x1="24" y1="18" x2="136" y2="112" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#242429"/>
+            <stop offset="1" stop-color="#18181c"/>
+          </linearGradient>
+        </defs>
+        <rect x="26" y="14" width="108" height="96" rx="12" fill="url(#cardFill)" stroke="#34343b"/>
+        <rect x="40" y="30" width="38" height="6" rx="3" fill="#e0a86a" opacity=".9"/>
+        <rect x="40" y="46" width="74" height="4" rx="2" fill="#4a4a54"/>
+        <rect x="40" y="57" width="62" height="4" rx="2" fill="#3d3d46"/>
+        <rect x="40" y="68" width="69" height="4" rx="2" fill="#3d3d46"/>
+        <rect x="40" y="84" width="30" height="10" rx="5" fill="#2b2b32" stroke="#3a3a43"/>
+        <circle cx="118" cy="88" r="17" fill="#1b1b20" stroke="#e0a86a" stroke-width="1.4"/>
+        <path d="M111 88l4.6 4.6L125 83.5" stroke="#8fd1b0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <h1>Nothing open yet</h1>
+      <p>Save a page above, or pick one from your shelf. Every copy is stored without scripts and is served from this machine only.</p>
+      <div class="empty-chips">
+        <span class="chip ok">SCRIPT-FREE</span>
+        <span class="chip">LOCAL ONLY</span>
+        <span class="chip">SEARCHABLE</span>
+      </div>
+    </section>
+
+    <section class="reader" id="reader" hidden>
+      <div class="reader-head">
+        <div class="reader-title-wrap">
+          <div class="reader-title" id="reader-title"></div>
+          <div class="reader-meta">
+            <span id="reader-host"></span>
+            <span class="dot">/</span>
+            <span id="reader-date"></span>
+            <span class="chip ok">OFFLINE</span>
+            <span class="chip">SCRIPTS BLOCKED</span>
+            <span class="chip warn" id="reader-http" hidden>HTTP</span>
+          </div>
+        </div>
+        <div class="reader-actions">
+          <button id="open-original" type="button">OPEN ORIGINAL</button>
+          <button id="delete-btn" type="button" class="danger">DELETE</button>
+        </div>
+      </div>
+      <div class="reader-frame">
+        <iframe id="page" sandbox="" referrerpolicy="no-referrer" title="Offline page"></iframe>
+        <div class="loading" id="loading" hidden>
+          <span class="spinner" aria-hidden="true"></span>
+          <span>Loading offline copy</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="statusbar">
+    <button class="icon-btn status-icon" id="sidebar-btn" type="button" title="Hide bookmark list" aria-label="Toggle bookmark list" aria-pressed="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/>
+        <path d="M9 4.5v15"/>
+      </svg>
+    </button>
+    <button class="icon-btn status-icon" id="pin-btn" type="button" title="Always on top" aria-label="Always on top" aria-pressed="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14.5 3.5l6 6-3 1.5-4 4-.5 4.5-1.5 1.5-4-4-4 4 4-4-4-4 1.5-1.5 4.5-.5 4-4z"/>
+      </svg>
+    </button>
+    <span id="status" aria-live="polite">Offline Ready. Everything stays on this machine.</span>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <div class="modal" id="modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <h2 id="modal-title">Delete this offline copy?</h2>
+      <p id="modal-text"></p>
+      <input class="modal-input" id="modal-input" type="text" maxlength="200" spellcheck="false" aria-label="Bookmark title" hidden>
+      <div class="modal-actions">
+        <button id="modal-cancel" type="button">CANCEL</button>
+        <button id="modal-confirm" type="button" class="danger">DELETE</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>/* @@JS@@ */</script>
+</body>
+</html>
