@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 256" width="640" height="256" role="img" aria-labelledby="title">
+  <title id="title">win-rere lockup, dark</title>
+  <g transform="translate(-27.28 30.72) scale(0.76)">
+    <path fill="#E0A86A" fill-rule="evenodd" d="M84 36 H152 L188 72 V204 A16 16 0 0 1 172 220 H148 L128 196 L108 220 H84 A16 16 0 0 1 68 204 V52 A16 16 0 0 1 84 36 Z M97 122 L123 148 L159 112 L147 100 L123 124 L109 110 Z"/>
+  </g>
+  <g transform="translate(100 0)" fill="none" stroke="#ECECEF" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M65 181 V97 A22 22 0 0 1 87 75 H125"/>
+    <path d="M246.77 164.77 A52 52 0 1 1 262 128 H158"/>
+    <path d="M300 181 V97 A22 22 0 0 1 322 75 H360"/>
+    <path d="M481.77 164.77 A52 52 0 1 1 497 128 H393"/>
+  </g>
+</svg>

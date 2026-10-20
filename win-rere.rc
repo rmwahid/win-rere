@@ -1,0 +1,26 @@
+1 ICON "assets/win-rere.ico"
+
+1 VERSIONINFO
+ FILEVERSION 0,1,0,0
+ PRODUCTVERSION 0,1,0,0
+ FILEOS 0x00040004L
+ FILETYPE 0x00000001L
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904B0"
+    BEGIN
+      VALUE "CompanyName", "rmwahid"
+      VALUE "FileDescription", "win-rere offline bookmark widget"
+      VALUE "FileVersion", "0.1.0"
+      VALUE "InternalName", "win-rere"
+      VALUE "OriginalFilename", "win-rere.exe"
+      VALUE "ProductName", "win-rere"
+      VALUE "ProductVersion", "0.1.0"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x409, 1200
+  END
+END

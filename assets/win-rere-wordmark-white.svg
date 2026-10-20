@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 256" width="560" height="256" role="img" aria-labelledby="title">
+  <title id="title">win-rere wordmark, rere, reversed</title>
+  <g fill="none" stroke="#ECECEF" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M65 181 V97 A22 22 0 0 1 87 75 H125"/>
+    <path d="M246.77 164.77 A52 52 0 1 1 262 128 H158"/>
+    <path d="M300 181 V97 A22 22 0 0 1 322 75 H360"/>
+    <path d="M481.77 164.77 A52 52 0 1 1 497 128 H393"/>
+  </g>
+</svg>

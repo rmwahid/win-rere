@@ -1,0 +1,12 @@
+# Build output.
+/target
+
+# Debug symbols and crash dumps.
+*.pdb
+*.dmp
+
+# Release copies made by hand.
+/dist
+
+# Tooling state, kept out of the repository like every other project here.
+.mimosa/

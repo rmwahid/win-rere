@@ -1,0 +1,27 @@
+[package]
+name = "win-rere"
+version = "0.1.0"
+edition = "2024"
+description = "A resizable Windows widget that keeps single pages as safe offline bookmarks"
+license = "MIT"
+publish = false
+
+[dependencies]
+encoding_rs = "0.8"
+html-escape = "0.2"
+lol_html = "2"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls", "gzip", "brotli", "deflate"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tokio = { version = "1", features = ["net"] }
+url = "2"
+uuid = { version = "1", features = ["v4"] }
+webview2-com = "0.39.1"
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_Graphics_Dwm", "Win32_System_Com", "Win32_System_LibraryLoader", "Win32_System_Console", "Win32_UI_HiDpi", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+
