@@ -556,7 +556,7 @@ fn content_navigation_id(uri: &str) -> Option<String> {
     if url.scheme() != "https" || url.host_str() != Some(CONTENT_HOST) {
         return None;
     }
-    if url.path() != "/index.html" {
+    if url.path() != "/index.html" && url.path() != "/mobile.html" {
         return None;
     }
     url.query_pairs().find_map(|(key, value)| {
@@ -582,6 +582,34 @@ fn wide_os(value: &OsStr) -> Vec<u16> {
 }
 
 /// Kept for the content URL built by the app.
-pub fn content_url(id: &str) -> String {
-    format!("{CONTENT_ORIGIN}/index.html?v={id}")
+pub fn content_url(id: &str, mobile: bool) -> String {
+    let document = if mobile { "mobile.html" } else { "index.html" };
+    format!("{CONTENT_ORIGIN}/{document}?v={id}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn content_urls_point_at_both_snapshots() {
+        let id = "0123456789abcdef0123456789abcdef";
+        assert_eq!(
+            content_url(id, false),
+            format!("{CONTENT_ORIGIN}/index.html?v={id}")
+        );
+        assert_eq!(
+            content_url(id, true),
+            format!("{CONTENT_ORIGIN}/mobile.html?v={id}")
+        );
+    }
+
+    #[test]
+    fn content_navigation_accepts_only_known_documents() {
+        let id = "0123456789abcdef0123456789abcdef";
+        assert_eq!(content_navigation_id(&content_url(id, false)), Some(id.to_string()));
+        assert_eq!(content_navigation_id(&content_url(id, true)), Some(id.to_string()));
+        assert!(content_navigation_id(&format!("{CONTENT_ORIGIN}/other.html?v={id}")).is_none());
+        assert!(content_navigation_id(&format!("https://evil.example/index.html?v={id}")).is_none());
+    }
 }

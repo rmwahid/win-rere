@@ -15,6 +15,14 @@ use crate::security;
 
 const MAX_HTML_BYTES: u64 = 5 * 1024 * 1024;
 const JOB_DEADLINE: Duration = Duration::from_secs(120);
+const HTML_ACCEPT: &str = "text/html,application/xhtml+xml;q=0.9,*/*;q=0.1";
+// Chromium Android so the mobile document is aimed at the same engine that
+// renders it inside WebView2.
+const MOBILE_USER_AGENT: &str = concat!(
+    "Mozilla/5.0 (Linux; Android 14; Pixel 8) ",
+    "AppleWebKit/537.36 (KHTML, like Gecko) ",
+    "Chrome/140.0.0.0 Mobile Safari/537.36"
+);
 
 /// Downloads, sanitizes and stores one page. The folder only becomes visible
 /// under its final id at the end; a failure removes everything.
@@ -31,33 +39,25 @@ pub fn save(paths: &Paths, input: &str, progress: Progress) -> Result<Bookmark, 
 
     let fetcher = Fetcher::new(Instant::now() + JOB_DEADLINE)?;
     progress("Downloading page".to_string());
-    let fetched = fetcher.get(
-        &url,
-        MAX_HTML_BYTES,
-        "text/html,application/xhtml+xml;q=0.9,*/*;q=0.1",
-    )?;
+    let (final_url, decoded) = fetch_page(&fetcher, &url, None)?;
 
-    let media = fetch::media_type(&fetched.content_type);
-    if !matches!(media.as_str(), "text/html" | "application/xhtml+xml") {
-        return Err("That URL did not return an HTML page.".to_string());
-    }
-    if fetched.bytes.is_empty() {
-        return Err("The page was empty.".to_string());
-    }
+    // The mobile copy is best effort. A site can refuse the mobile user agent,
+    // time out, or return something that is not HTML; the desktop archive is
+    // still useful, and the button stays disabled until the page is saved again.
+    progress("Downloading mobile page".to_string());
+    let mobile = match fetch_page(&fetcher, &final_url, Some(MOBILE_USER_AGENT)) {
+        Ok(page) => Some(page),
+        Err(error) => {
+            logging::line(&format!("mobile variant unavailable: {error}"));
+            None
+        }
+    };
 
-    let final_url = fetched.final_url.clone();
-    security::validate_url(&final_url)?;
     let host = final_url.host_str().unwrap_or("this page").to_string();
-    let decoded = sanitize::decode_bytes(&fetched.bytes, &fetched.content_type);
 
     progress("Preparing offline copy".to_string());
-    let rewritten = sanitize::rewrite_html(
-        &decoded,
-        &final_url,
-        &temporary,
-        &fetcher,
-        progress.clone(),
-    )?;
+    let assets = sanitize::AssetCache::new(&temporary, &fetcher, progress.clone())?;
+    let rewritten = assets.rewrite(&decoded, &final_url, None)?;
 
     let title = if rewritten.title.is_empty() {
         fallback_title(&final_url)
@@ -71,9 +71,31 @@ pub fn save(paths: &Paths, input: &str, progress: Progress) -> Result<Bookmark, 
     };
 
     progress("Writing archive".to_string());
-    let html_bytes = rewritten.html.as_bytes().len() as u64;
+    let mut html_bytes = rewritten.html.as_bytes().len() as u64;
     fs::write(temporary.join("index.html"), rewritten.html.as_bytes())
         .map_err(|error| format!("Could not write the offline page: {error}"))?;
+
+    let mut has_mobile = false;
+    if let Some((mobile_url, mobile_html)) = mobile {
+        progress("Preparing mobile copy".to_string());
+        match assets.rewrite(&mobile_html, &mobile_url, Some(MOBILE_USER_AGENT)) {
+            Ok(rewritten_mobile) => {
+                match fs::write(temporary.join("mobile.html"), rewritten_mobile.html.as_bytes()) {
+                    Ok(()) => {
+                        html_bytes += rewritten_mobile.html.as_bytes().len() as u64;
+                        has_mobile = true;
+                    }
+                    Err(error) => {
+                        let _ = fs::remove_file(temporary.join("mobile.html"));
+                        logging::line(&format!("could not write the mobile copy: {error}"));
+                    }
+                }
+            }
+            Err(error) => {
+                logging::line(&format!("mobile copy could not be prepared: {error}"));
+            }
+        }
+    }
     let assets_bytes = folder_size(&temporary.join("assets"))?;
 
     let bookmark = Bookmark {
@@ -85,7 +107,8 @@ pub fn save(paths: &Paths, input: &str, progress: Progress) -> Result<Bookmark, 
         description: truncate(&description, 600),
         saved_at: logging::now_iso8601(),
         bytes: html_bytes + assets_bytes,
-        assets: rewritten.assets,
+        assets: assets.assets(),
+        has_mobile,
         insecure: final_url.scheme() == "http",
     };
 
@@ -108,13 +131,33 @@ pub fn save(paths: &Paths, input: &str, progress: Progress) -> Result<Bookmark, 
     }
 
     logging::line(&format!(
-        "saved {} as {} ({} assets, {})",
+        "saved {} as {} ({} assets, {}, mobile={})",
         final_url,
         id,
         bookmark.assets,
-        fetch::human_size(bookmark.bytes)
+        fetch::human_size(bookmark.bytes),
+        bookmark.has_mobile
     ));
     Ok(bookmark)
+}
+
+fn fetch_page(
+    fetcher: &Fetcher,
+    url: &Url,
+    user_agent: Option<&str>,
+) -> Result<(Url, String), String> {
+    let fetched = fetcher.get_with_user_agent(url, MAX_HTML_BYTES, HTML_ACCEPT, user_agent)?;
+    let media = fetch::media_type(&fetched.content_type);
+    if !matches!(media.as_str(), "text/html" | "application/xhtml+xml") {
+        return Err("That URL did not return an HTML page.".to_string());
+    }
+    if fetched.bytes.is_empty() {
+        return Err("The page was empty.".to_string());
+    }
+    let final_url = fetched.final_url.clone();
+    security::validate_url(&final_url)?;
+    let decoded = sanitize::decode_bytes(&fetched.bytes, &fetched.content_type);
+    Ok((final_url, decoded))
 }
 
 struct TempArchive {

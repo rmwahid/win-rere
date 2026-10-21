@@ -53,24 +53,49 @@ pub struct HtmlResult {
     pub html: String,
     pub title: String,
     pub description: String,
-    pub assets: u32,
 }
 
-pub fn rewrite_html(
+/// The asset store shared by the desktop and mobile documents of one archive.
+pub struct AssetCache {
+    store: Rc<RefCell<AssetStore>>,
+}
+
+impl AssetCache {
+    pub fn new(root: &Path, fetcher: &Fetcher, progress: Progress) -> Result<Self, String> {
+        fs::create_dir_all(root.join("assets"))
+            .map_err(|error| format!("Could not create the asset folder: {error}"))?;
+        Ok(Self {
+            store: Rc::new(RefCell::new(AssetStore::new(
+                fetcher.clone(),
+                root.to_path_buf(),
+                progress,
+            ))),
+        })
+    }
+
+    /// Rewrites one document into the shared archive. The user agent is part of
+    /// the asset cache key, so a mobile document never reuses a response the
+    /// server tailored to the desktop request.
+    pub fn rewrite(
+        &self,
+        html: &str,
+        base: &Url,
+        user_agent: Option<&str>,
+    ) -> Result<HtmlResult, String> {
+        self.store.borrow_mut().user_agent = user_agent.map(ToOwned::to_owned);
+        rewrite_with_store(html, base, self.store.clone())
+    }
+
+    pub fn assets(&self) -> u32 {
+        self.store.borrow().count
+    }
+}
+
+fn rewrite_with_store(
     html: &str,
     base: &Url,
-    root: &Path,
-    fetcher: &Fetcher,
-    progress: Progress,
+    store: Rc<RefCell<AssetStore>>,
 ) -> Result<HtmlResult, String> {
-    fs::create_dir_all(root.join("assets"))
-        .map_err(|error| format!("Could not create the asset folder: {error}"))?;
-
-    let store = Rc::new(RefCell::new(AssetStore::new(
-        fetcher.clone(),
-        root.to_path_buf(),
-        progress,
-    )));
     let title = Rc::new(RefCell::new(String::new()));
     let og_title = Rc::new(RefCell::new(String::new()));
     let description = Rc::new(RefCell::new(String::new()));
@@ -371,12 +396,10 @@ pub fn rewrite_html(
         description = collapse_text(&extract_text(&rewritten), 240);
     }
 
-    let assets = store.borrow().count;
     Ok(HtmlResult {
         html: rewritten,
         title,
         description,
-        assets,
     })
 }
 
@@ -389,7 +412,11 @@ fn fetch_asset(
     base: &Url,
 ) -> Option<String> {
     let url = resolve_asset_url(base, raw)?;
-    let key = url.as_str().to_string();
+    let user_agent = store.borrow().user_agent.clone();
+    let key = match &user_agent {
+        Some(user_agent) => format!("{user_agent}\n{url}"),
+        None => url.as_str().to_string(),
+    };
 
     {
         let store = store.borrow();
@@ -414,7 +441,7 @@ fn fetch_asset(
     let fetched = match store
         .borrow()
         .fetcher
-        .get(&url, MAX_ASSET_BYTES, accept_for(kind))
+        .get_with_user_agent(&url, MAX_ASSET_BYTES, accept_for(kind), user_agent.as_deref())
     {
         Ok(fetched) => fetched,
         Err(error) => {
@@ -442,7 +469,8 @@ fn fetch_asset(
     let digest = Sha256::digest(&bytes);
     let filename = format!("{}.{extension}", hex(&digest));
     let path = store.borrow().assets_dir.join(&filename);
-    if !path.exists() {
+    let is_new = !path.exists();
+    if is_new {
         if let Err(error) = fs::write(&path, &bytes) {
             logging::line(&format!("could not write asset {filename}: {error}"));
             return None;
@@ -456,12 +484,14 @@ fn fetch_asset(
     };
 
     let mut store = store.borrow_mut();
-    store.count += 1;
-    store.total += bytes.len() as u64;
-    store.cache.insert(key, Some(returned.clone()));
-    if store.count % 5 == 0 {
-        (store.progress)(format!("Downloading assets ({})", store.count));
+    if is_new {
+        store.count += 1;
+        store.total += bytes.len() as u64;
+        if store.count % 5 == 0 {
+            (store.progress)(format!("Downloading assets ({})", store.count));
+        }
     }
+    store.cache.insert(key, Some(returned.clone()));
     Some(returned)
 }
 
@@ -493,6 +523,7 @@ struct AssetStore {
     cache: HashMap<String, Option<String>>,
     count: u32,
     total: u64,
+    user_agent: Option<String>,
     progress: Progress,
 }
 
@@ -504,6 +535,7 @@ impl AssetStore {
             cache: HashMap::new(),
             count: 0,
             total: 0,
+            user_agent: None,
             progress,
         }
     }
@@ -1160,14 +1192,10 @@ mod tests {
             uuid::Uuid::new_v4().simple()
         ));
         let base = Url::parse("https://example.com/docs/page").unwrap();
-        let result = rewrite_html(
-            html,
-            &base,
-            &root,
-            &test_fetcher(),
-            Arc::new(|_| {}),
-        )
-        .unwrap();
+        let result = AssetCache::new(&root, &test_fetcher(), Arc::new(|_| {}))
+            .unwrap()
+            .rewrite(html, &base, None)
+            .unwrap();
         let _ = std::fs::remove_dir_all(root);
         result
     }

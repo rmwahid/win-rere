@@ -153,6 +153,11 @@ pub fn read_window_state(paths: &Paths) -> WindowState {
         state.width = defaults.width;
         state.height = defaults.height;
     }
+    if state.version < 4 {
+        // Older files do not have the mobile preference, which serde already
+        // defaulted to off.
+        state.version = 4;
+    }
     state
 }
 
@@ -231,6 +236,9 @@ fn normalize(bookmark: &mut Bookmark, paths: &Paths, check_archive: bool) -> boo
     }
     if check_archive && !paths.archive_html(&bookmark.id).is_file() {
         return false;
+    }
+    if check_archive && bookmark.has_mobile && !paths.archive_mobile(&bookmark.id).is_file() {
+        bookmark.has_mobile = false;
     }
     let url_ok = url::Url::parse(&bookmark.url)
         .map(|url| matches!(url.scheme(), "http" | "https"))
@@ -340,6 +348,7 @@ mod tests {
             saved_at: "2026-01-01T00:00:00Z".to_string(),
             bytes: 0,
             assets: 0,
+            has_mobile: false,
             insecure: false,
         }
     }
@@ -409,6 +418,55 @@ mod tests {
         assert!(!paths.dirty_file().exists());
 
         let root = paths.index_file.parent().unwrap().to_path_buf();
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn mobile_view_is_off_for_older_window_state() {
+        let paths = temp_paths();
+        fs::write(
+            &paths.window_file,
+            r#"{"version":3,"x":0,"y":0,"width":736,"height":640,"topmost":true,"sidebar_visible":true}"#,
+        )
+        .unwrap();
+
+        let state = read_window_state(&paths);
+        assert_eq!(state.version, 4);
+        assert!(!state.mobile_view);
+
+        let root = paths.window_file.parent().unwrap().to_path_buf();
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn missing_mobile_file_is_dropped_on_recovery() {
+        let paths = temp_paths();
+        let id = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        let mut bookmark = sample(id, "Desktop only after recovery");
+        bookmark.has_mobile = true;
+        write_archive(&paths, &bookmark);
+        mark_dirty(&paths);
+
+        let items = load_bookmarks(&paths);
+        assert_eq!(items.len(), 1);
+        assert!(!items[0].has_mobile);
+
+        let root = paths.index_file.parent().unwrap().to_path_buf();
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn mobile_view_round_trips_through_the_window_file() {
+        let paths = temp_paths();
+        let mut state = WindowState::default();
+        state.mobile_view = true;
+        write_window_state(&paths, &state);
+
+        let loaded = read_window_state(&paths);
+        assert_eq!(loaded.version, 4);
+        assert!(loaded.mobile_view);
+
+        let root = paths.window_file.parent().unwrap().to_path_buf();
         let _ = fs::remove_dir_all(root);
     }
 }

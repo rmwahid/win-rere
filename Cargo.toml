@@ -2,7 +2,7 @@
 name = "win-rere"
 version = "0.1.0"
 edition = "2024"
-description = "A resizable Windows widget that keeps single pages as safe offline bookmarks"
+description = "A resizable Windows widget for rereading single pages as safe offline bookmarks"
 license = "MIT"
 publish = false
 

@@ -21,6 +21,9 @@ pub struct Bookmark {
     pub bytes: u64,
     #[serde(default)]
     pub assets: u32,
+    /// True when the archive also contains a separately downloaded mobile page.
+    #[serde(default)]
+    pub has_mobile: bool,
     /// True when the page was fetched over plain HTTP.
     #[serde(default)]
     pub insecure: bool,
@@ -41,7 +44,8 @@ impl Bookmark {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WindowState {
     /// Bumped when a stored placement needs to be migrated. Version 3 is the
-    /// minimum-width default and knows about the sidebar preference.
+    /// minimum-width default and knows about the sidebar preference. Version 4
+    /// adds the mobile reading preference.
     #[serde(default)]
     pub version: u32,
     pub x: i32,
@@ -53,6 +57,9 @@ pub struct WindowState {
     pub last_open: Option<String>,
     #[serde(default = "default_true")]
     pub sidebar_visible: bool,
+    /// The reader constrains the archived page to a phone-width viewport.
+    #[serde(default)]
+    pub mobile_view: bool,
 }
 
 fn default_true() -> bool {
@@ -62,7 +69,7 @@ fn default_true() -> bool {
 impl Default for WindowState {
     fn default() -> Self {
         Self {
-            version: 3,
+            version: 4,
             // A sentinel the window code replaces with the top right corner of
             // the work area on the first run.
             x: i32::MIN,
@@ -74,6 +81,7 @@ impl Default for WindowState {
             topmost: true,
             last_open: None,
             sidebar_visible: true,
+            mobile_view: false,
         }
     }
 }
@@ -88,6 +96,7 @@ pub enum UiCommand {
     Delete { id: String },
     Rename { id: String, title: String },
     Sidebar { visible: bool },
+    MobileView { value: bool },
     OpenExternal { id: String },
     Drag,
     Pin { value: bool },
@@ -103,6 +112,7 @@ pub enum UiEvent {
         items: Vec<Bookmark>,
         topmost: bool,
         active: Option<String>,
+        mobile_view: bool,
     },
     SaveStarted {
         url: String,

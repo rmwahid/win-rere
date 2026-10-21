@@ -18,7 +18,7 @@ use std::time::{Duration, Instant};
 use reqwest::blocking::Client;
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 use reqwest::redirect::Policy;
-use reqwest::header::{ACCEPT, CONTENT_TYPE};
+use reqwest::header::{ACCEPT, CONTENT_TYPE, USER_AGENT};
 use url::Url;
 
 use crate::security;
@@ -61,17 +61,25 @@ impl Fetcher {
     }
 
     /// Fetches `url`, refusing anything that is not a public web page and
-    /// anything larger than `limit` bytes after decompression.
-    pub fn get(&self, url: &Url, limit: u64, accept: &str) -> Result<Fetched, String> {
+    /// anything larger than `limit` bytes after decompression. A per-request
+    /// user agent lets the caller ask the server for its mobile document.
+    pub fn get_with_user_agent(
+        &self,
+        url: &Url,
+        limit: u64,
+        accept: &str,
+        user_agent: Option<&str>,
+    ) -> Result<Fetched, String> {
         security::validate_url(url)?;
         if self.expired() {
             return Err("The download took too long and was stopped.".to_string());
         }
 
-        let response = self
-            .client
-            .get(url.clone())
-            .header(ACCEPT, accept)
+        let mut request = self.client.get(url.clone()).header(ACCEPT, accept);
+        if let Some(user_agent) = user_agent {
+            request = request.header(USER_AGENT, user_agent);
+        }
+        let response = request
             .send()
             .map_err(|error| friendly_request_error(&error))?;
 

@@ -23,6 +23,7 @@
   const readerHost = $("reader-host");
   const readerDate = $("reader-date");
   const readerHttp = $("reader-http");
+  const mobileBtn = $("mobile-btn");
   const openOriginal = $("open-original");
   const deleteBtn = $("delete-btn");
   const page = $("page");
@@ -50,6 +51,7 @@
     query: "",
     sort: "newest",
     sidebarVisible: true,
+    mobileView: false,
   };
 
   let toastTimer = 0;
@@ -284,6 +286,32 @@
     pinBtn.title = state.topmost ? "Always on top: on" : "Always on top: off";
   }
 
+  function updateMobile() {
+    const item = state.activeId ? findItem(state.activeId) : null;
+    const available = !!(item && item.has_mobile);
+    const active = available && state.mobileView;
+    reader.classList.toggle("mobile", active);
+    mobileBtn.classList.toggle("active", active);
+    mobileBtn.disabled = !available;
+    mobileBtn.setAttribute("aria-pressed", active ? "true" : "false");
+    mobileBtn.title = !available
+      ? "No mobile snapshot for this page"
+      : active ? "Mobile view: on" : "Mobile view: off";
+  }
+
+  function loadActiveVariant() {
+    const item = state.activeId ? findItem(state.activeId) : null;
+    if (!item) return;
+    const mobile = state.mobileView && item.has_mobile;
+    page.src =
+      CONTENT_PREFIX +
+      (mobile ? "mobile.html" : "index.html") +
+      "?v=" +
+      encodeURIComponent(item.id);
+    loading.hidden = false;
+    setStatus(mobile ? "Opening the mobile copy..." : "Opening the desktop copy...");
+  }
+
   function showReader(item) {
     reader.hidden = false;
     empty.hidden = true;
@@ -294,6 +322,7 @@
     readerHttp.hidden = !item.insecure;
     openOriginal.disabled = false;
     deleteBtn.disabled = false;
+    updateMobile();
   }
 
   function hideReader() {
@@ -301,6 +330,7 @@
     empty.hidden = false;
     loading.hidden = true;
     state.activeId = null;
+    updateMobile();
     try {
       page.src = "about:blank";
     } catch (_error) {
@@ -321,8 +351,10 @@
       return item;
     });
     state.topmost = !!event.topmost;
+    state.mobileView = !!event.mobile_view;
     state.activeId = typeof event.active === "string" ? event.active : null;
     updatePin();
+    updateMobile();
     renderList();
 
     if (state.activeId) {
@@ -362,10 +394,18 @@
           } else {
             state.items.unshift(item);
           }
-          showToast("Saved: " + (item.title || item.host));
+          showToast(
+            item.has_mobile
+              ? "Saved desktop and mobile: " + (item.title || item.host)
+              : "Saved desktop only: " + (item.title || item.host)
+          );
           renderList();
         }
-        setStatus("Saved offline. Everything is on this machine now.");
+        setStatus(
+          item && item.has_mobile
+            ? "Saved offline, desktop and mobile."
+            : "Saved offline, desktop copy only."
+        );
         urlInput.value = "";
         break;
       }
@@ -515,6 +555,15 @@
 
   openOriginal.addEventListener("click", function () {
     if (state.activeId) send({ cmd: "open_external", id: state.activeId });
+  });
+
+  mobileBtn.addEventListener("click", function () {
+    const item = state.activeId ? findItem(state.activeId) : null;
+    if (!item || !item.has_mobile) return;
+    state.mobileView = !state.mobileView;
+    updateMobile();
+    send({ cmd: "mobile_view", value: state.mobileView });
+    loadActiveVariant();
   });
 
   function closeModal() {

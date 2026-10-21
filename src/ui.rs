@@ -27,6 +27,9 @@ mod tests {
         assert!(output.contains("data-sidebar=\"visible\""));
         assert!(output.contains("window.__winRere"));
         assert!(output.contains("win-rere-content.example"));
+        assert!(output.contains("id=\"mobile-btn\""));
+        assert!(output.contains("mobile.html"));
+        assert!(output.contains("has_mobile"));
     }
 
     #[test]

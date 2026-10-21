@@ -56,6 +56,11 @@ impl Paths {
         self.archive_dir(id).join("index.html")
     }
 
+    /// The mobile document captured with a mobile user agent, when available.
+    pub fn archive_mobile(&self, id: &str) -> PathBuf {
+        self.archive_dir(id).join("mobile.html")
+    }
+
     /// Metadata lives beside the archive folder, never inside it. The folder is
     /// handed to WebView2 as the content root, so nothing but the page and its
     /// assets may live there.

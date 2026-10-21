@@ -4,6 +4,8 @@
 
 A resizable Windows desktop widget that keeps single web pages as safe, offline bookmarks. Paste a URL, save it, and read a script-free snapshot later without a network connection. The widget shows one page at a time; there are no tabs.
 
+The name `rere` comes from `reread`: save a page once, then return to it whenever you like, without the network.
+
 The UI is one WebView2 view. The archived page lives in a sandboxed iframe served from local disk through a virtual host mapping. Nothing about a saved page reaches the network when it is opened.
 
 ![win-rere empty library](assets/screenshot.png)
@@ -24,13 +26,16 @@ Run `win-rere.exe`. Drag any empty part of the top bar to move the window, or an
 | Rename a bookmark | Hover a row, click the pencil, change the title |
 | Sort the list | Click `NEWEST` to switch to A-Z |
 | Open the original page online | `OPEN ORIGINAL` in the reader header |
+| Read at a phone width | The phone button in the reader header; it loads the saved mobile copy and remembers the choice |
 | Delete the offline copy | `DELETE` in the reader header, then confirm |
 | Keep above other windows | The pin button in the bottom left; the choice is remembered |
 | Minimize / close | The two window buttons at the top right |
 
 Only the title is editable. The URL, the saved page and its assets stay as they were archived.
 
-Saving is asynchronous. The status bar and a thin progress line report what the archiver is doing. A newly saved page is opened automatically.
+Mobile view loads a second snapshot that was downloaded with a mobile user agent. It is not device emulation: scripts stay blocked, touch input is not simulated, and the phone button is enabled only for bookmarks that actually contain a mobile copy. When a site serves no mobile document, or that request fails, the save keeps the desktop copy and the button stays disabled. Bookmarks saved before this feature need to be saved again to gain a mobile copy.
+
+Saving is asynchronous. The archiver requests the page twice, once as desktop and once with a mobile user agent, then downloads the assets used by both documents. The status bar and a thin progress line report what it is doing. A newly saved page is opened automatically.
 
 ## Security model
 
@@ -38,11 +43,11 @@ A page downloaded from the internet is treated as hostile.
 
 1. **URL policy.** Only `http` and `https`, only ports 80 and 443, no embedded username or password. Localhost, loopback, private, link-local, carrier-grade NAT, multicast, documentation and other reserved addresses are refused, including IPv4-mapped IPv6 forms.
 2. **DNS filtering at connection time.** A custom resolver keeps only public addresses. Redirects are re-validated hop by hop, redirects from HTTPS to HTTP are refused, and the resolved peer address is checked again after connecting. Proxies are disabled so resolution cannot move to another process.
-3. **Sanitization.** Scripts, iframes, objects, embeds, forms' submission attributes, event handlers, `javascript:` links, meta refresh, external stylesheets and other active content are removed or rewritten. Stylesheets and their `url()` references are parsed and every asset is downloaded locally or dropped.
+3. **Sanitization.** Scripts, iframes, objects, embeds, forms' submission attributes, event handlers, `javascript:` links, meta refresh, external stylesheets and other active content are removed or rewritten. Stylesheets and their `url()` references are parsed and every asset is downloaded locally or dropped. The desktop and mobile documents go through the same sanitizer and share one asset folder.
 4. **Strict CSP.** The saved document carries `default-src 'none'`, `script-src 'none'`, `connect-src 'none'`, `form-action 'none'`, `base-uri 'none'`, and allows images, styles and fonts only from the local content host or `data:`.
 5. **Sandboxed iframe.** The reader embeds the page with `sandbox` (no scripts, forms, popups, downloads, top navigation, or same-origin access).
 6. **No network while reading.** The archived page is served by a WebView2 virtual host mapping rooted at the active bookmark folder. There is no HTTP server and no DNS lookup. External link clicks are cancelled and reported in the widget.
-7. **Bounded downloads.** HTML is limited to 5 MB. Each asset is limited to 8 MB, 250 assets and 40 MB per archive. Content types are checked, and common image and font formats are verified by their magic bytes. The whole job has a 120 second deadline.
+7. **Bounded downloads.** HTML is limited to 5 MB per variant, so a save can store up to 10 MB of markup. Each asset is limited to 8 MB, and both variants together share a limit of 250 unique assets and 40 MB. Content types are checked, and common image and font formats are verified by their magic bytes. The whole job has a 120 second deadline. The mobile request is best effort; if it fails, the desktop archive is still written.
 
 WebView2's own settings are hardened too: developer tools, context menus, autofill, password save, status bar, swipe navigation and browser accelerator keys are off. Permission requests and downloads are denied, popups are blocked, and the page cannot use host objects.
 
@@ -56,8 +61,9 @@ Bookmarks are user data and live under `%APPDATA%\win-rere`:
 |---|---|
 | `bookmarks.json` | The index |
 | `bookmarks\<id>.json` | Metadata for one bookmark |
-| `bookmarks\<id>\index.html` | The saved page |
-| `bookmarks\<id>\assets\` | Downloaded stylesheets, images, fonts |
+| `bookmarks\<id>\index.html` | The saved desktop page |
+| `bookmarks\<id>\mobile.html` | The saved mobile page, when the site supplied one |
+| `bookmarks\<id>\assets\` | Downloaded stylesheets, images, fonts, shared by both pages |
 | `window.json` | Window placement, pin state, last opened bookmark |
 
 The WebView2 profile and `win-rere.log` live under `%LOCALAPPDATA%\win-rere`. Logs rotate at 2 MB. If `bookmarks.json` is lost, startup rebuilds it from the metadata files.

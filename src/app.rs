@@ -295,6 +295,7 @@ impl App {
             UiCommand::Delete { id } => self.delete_bookmark(&id),
             UiCommand::Rename { id, title } => self.rename_bookmark(&id, &title),
             UiCommand::Sidebar { visible } => self.set_sidebar(visible),
+            UiCommand::MobileView { value } => self.set_mobile_view(value),
             UiCommand::OpenExternal { id } => self.open_external(&id),
             UiCommand::Drag => window::begin_drag(self.hwnd),
             UiCommand::Pin { value } => self.pin(value),
@@ -375,12 +376,13 @@ impl App {
             });
             return;
         }
-        if !self.bookmarks.iter().any(|bookmark| bookmark.id == id) {
+        let Some(bookmark) = self.bookmarks.iter().find(|bookmark| bookmark.id == id) else {
             self.send_event(UiEvent::OpenError {
                 message: "That bookmark no longer exists.".to_string(),
             });
             return;
-        }
+        };
+        let use_mobile = self.window_state.mobile_view && bookmark.has_mobile;
         let Some(webview) = &self.webview else {
             self.send_event(UiEvent::OpenError {
                 message: "The reader is not ready yet.".to_string(),
@@ -395,10 +397,13 @@ impl App {
         *self.active.borrow_mut() = Some(id.to_string());
         self.window_state.last_open = Some(id.to_string());
         state::write_window_state(&self.paths, &self.window_state);
-        logging::line(&format!("opening bookmark {id}"));
+        logging::line(&format!(
+            "opening bookmark {id} ({})",
+            if use_mobile { "mobile" } else { "desktop" }
+        ));
         self.send_event(UiEvent::Opening {
             id: id.to_string(),
-            url: webview::content_url(id),
+            url: webview::content_url(id, use_mobile),
         });
     }
 
@@ -512,6 +517,11 @@ impl App {
         state::write_window_state(&self.paths, &self.window_state);
     }
 
+    fn set_mobile_view(&mut self, value: bool) {
+        self.window_state.mobile_view = value;
+        state::write_window_state(&self.paths, &self.window_state);
+    }
+
     fn open_external(&mut self, id: &str) {
         let Some(bookmark) = self.bookmarks.iter().find(|bookmark| bookmark.id == id) else {
             self.send_event(UiEvent::Status {
@@ -602,6 +612,7 @@ impl App {
             items: self.bookmarks.clone(),
             topmost: self.window_state.topmost,
             active: self.active.borrow().clone(),
+            mobile_view: self.window_state.mobile_view,
         });
     }
 
